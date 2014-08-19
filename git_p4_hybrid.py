@@ -8,7 +8,7 @@ Created on Aug 18, 2014
 
 import sys
 import argparse
-import git_p4_config
+from git_p4_config import git_p4_config
 
 def main(argv):        
     parser = argparse.ArgumentParser(prog='git-p4', description="git-p4 hybrid",)
@@ -28,6 +28,7 @@ def main(argv):
     if options.subcommand == "config":
         git_p4_config(options)
     
+    print "DEBUG: options control"
     print options
 
 if __name__ == "__main__":

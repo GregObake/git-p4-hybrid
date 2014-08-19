@@ -17,9 +17,7 @@ def git_p4_config_list():
         with open(P4CONFIG_PATH, "r") as config_file:
             print config_file.read()
 
-def git_p4_config_write(options):
-    if False == os.path.exists(P4CONFIG_PATH):
-        open(P4CONFIG_PATH, "rw")
+def git_p4_config_write(options):    
     config_parser = ConfigParser.ConfigParser()
     config_parser.read(P4CONFIG_PATH)
     
@@ -33,9 +31,17 @@ def git_p4_config_write(options):
     config_parser.set(options.branch, 'client', options.client)
     if options.passwd != None:
         config_parser.set(options.branch, 'passwd', options.passwd)
-        
-    with open(P4CONFIG_PATH, "rw") as config_file:
+                
+    with open(P4CONFIG_PATH, "w+") as config_file:
         config_parser.write(config_file)
+        
+def get_branch_config(branch_name):
+    config_parser = ConfigParser.ConfigParser()
+    config_parser.read(P4CONFIG_PATH)
+    p4_port = config_parser.get(branch_name, 'port')
+    p4_user = config_parser.get(branch_name, 'user')
+    p4_client = config_parser.get(branch_name, 'client')
+    return (p4_port, p4_user, p4_client)
     
 def git_p4_config(options):
     if options.list == True:
