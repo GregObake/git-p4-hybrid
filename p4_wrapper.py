@@ -22,8 +22,23 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 import os
 import subprocess
+from datetime import datetime
 from git_p4_config import get_branch_config
 from cStringIO import StringIO
+
+class p4_client_config(object):
+    def add_property(self, name, value):
+        fget = lambda self: self._get_property(name)
+        fset = lambda self, value: self._set_property(name, value)
+        
+        setattr(self.__class__, name, property(fget, fset))
+        setattr(self, name, value)
+        
+    def _get_property(self, name):
+        return getattr(self, name)
+    
+    def _set_property(self, name, value):
+        setattr(self, name, value)
 
 class p4_wrapper:
     def __init__(self):
@@ -31,8 +46,8 @@ class p4_wrapper:
         self._p4port = None
         self._p4user = None
         self._p4client = None
-        self._p4client_config = dict()
         self._p4log = False        
+        self._p4conf = p4_client_config()
         
     def set_p4_log(self, p4log):
         self._p4log = p4log
@@ -64,6 +79,10 @@ class p4_wrapper:
         
         return res
     
+    def p4_client_write(self):
+        if self._logged == False:
+            return False
+    
     def _parse_p4_client(self, to_parse):
         client_str_io = StringIO(to_parse)
         #first of all go to the end of long comment
@@ -74,9 +93,69 @@ class p4_wrapper:
         nl = client_str_io.readline()
             
         client_str = client_str_io.read();
-        client_config = dict();
         
-        ind = client_str.find("Root:")
+        self._parse_datetime_option(client_str, "Update:") #TODO: change to datetime
+        self._parse_datetime_option(client_str, "Access:") #TODO: change to datetime
+        self._parse_string_option(client_str, "Owner:")
+        self._parse_string_option(client_str, "Host:")
+        #client_config = self._parse_string_option(client_str, "Description:", client_config) #TODO: make method for parsing long text
+        self._parse_string_option(client_str, "Root:")
+        self._parse_list_option(client_str, "Options:")
+        self._parse_list_option(client_str, "SubmitOptions:")
+        self._parse_string_option(client_str, "LineEnd:")
+        self._parse_view_option(client_str)
         
+        print self._p4conf.__dict__.keys()
+        print self._p4conf.__dict__.values()
         
-        print client_str
+    def _parse_string_option(self, client_str, arg_name):
+        ind = client_str.find(arg_name)
+        
+        if ind == -1:
+            return
+        
+        client_str_io = StringIO(client_str[ind:])
+        nl = client_str_io.readline()
+        words = nl.split()
+        self._p4conf.add_property(arg_name[:-1], words[1])
+        
+    def _parse_list_option(self, client_str, arg_name):
+        ind = client_str.find(arg_name)
+        
+        if ind == -1:
+            return
+        
+        client_str_io = StringIO(client_str[ind:])
+        nl = client_str_io.readline()
+        words = nl.split()
+        self._p4conf.add_property(arg_name[:-1], words[1:])
+        
+    def _parse_datetime_option(self, client_str, arg_name):
+        ind = client_str.find(arg_name)
+        
+        if ind == -1:
+            return
+        
+        client_str_io = StringIO(client_str[ind:])
+        nl = client_str_io.readline()
+        
+        datetime_parsed = datetime.strptime(nl[len(arg_name):].strip(), "%Y/%m/%d %H:%M:%S")
+        self._p4conf.add_property(arg_name[:-1], datetime_parsed)
+        
+    def _parse_view_option(self, client_str):
+        ind = client_str.find("View:")
+        
+        if ind == -1:
+            return
+        
+        client_str_io = StringIO(client_str[ind:])
+        nl = client_str_io.readline() # "View:" string
+        nl = client_str_io.readline()
+        
+        view = dict()
+        while nl.strip()!="":
+            mapping = nl.split()
+            view[mapping[0]] = mapping[1]
+            nl = client_str_io.readline()
+            
+        self._p4conf.add_property("View", view)

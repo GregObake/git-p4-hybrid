@@ -20,10 +20,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 '''
 import os
+import subprocess
 import ConfigParser
 
-P4CONFIG_PATH = "/home/gregor/workspace/git-p4-hybrid/.git/p4config"
-#P4CONFIG_PATH = os.getcwd()+"/.git/p4config"
+GIT_TOPDIR = subprocess.check_output('git rev-parse --show-toplevel', shell=True)
+P4CONFIG_PATH = GIT_TOPDIR.strip('\n')+"/.git/p4config"
+print P4CONFIG_PATH
 
 def git_p4_config_list():
     if False == os.path.exists(P4CONFIG_PATH):
