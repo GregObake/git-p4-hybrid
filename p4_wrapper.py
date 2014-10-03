@@ -25,6 +25,7 @@ import subprocess
 from datetime import datetime
 from git_p4_config import get_branch_config
 from cStringIO import StringIO
+import git_wrapper
 
 class p4_client_config(object):
     def add_property(self, name, value):
@@ -32,13 +33,13 @@ class p4_client_config(object):
         fset = lambda self, value: self._set_property(name, value)
         
         setattr(self.__class__, name, property(fget, fset))
-        setattr(self, name, value)
+        setattr(self, "_"+name, value)
         
     def _get_property(self, name):
-        return getattr(self, name)
+        return getattr(self, "_"+name)
     
     def _set_property(self, name, value):
-        setattr(self, name, value)
+        setattr(self, "_"+name, value)
 
 class p4_wrapper:
     def __init__(self):
@@ -82,31 +83,56 @@ class p4_wrapper:
     def p4_client_write(self):
         if self._logged == False:
             return False
+        
+        output = ""
+        for key, value in self._p4conf.__dict__.iteritems():
+            output += key[1:]+":"    
+            if type(value) == str:
+                output += "\t"+value
+            elif type(value) == list:
+                output += "\t"
+                for list_item in value:
+                    output += list_item+" "
+            elif type(value) == datetime:
+                output += "\t"+value.strftime("%Y/%m/%d %H:%M:%S")
+            elif type(value) == dict:
+                output += "\n"
+                for map_in, map_out in value.iteritems():
+                    output += "\t"+map_in+" "+map_out+"\n"
+            output+="\n"
+        
+        temp_path = git_wrapper.get_repo_topdir()+"/.git/temp_p4_config"
+        
+        with open(temp_path, "w") as temp_file:
+            temp_file.write(output)
+            
+        res = subprocess.check_output('p4 client -i < '+temp_path, shell=True)
+        os.remove(temp_path)
+        
+        print res
     
     def _parse_p4_client(self, to_parse):
         client_str_io = StringIO(to_parse)
         #first of all go to the end of long comment
-        nl = client_str_io.readline()        
+        nl = client_str_io.readline()
         while nl[0] == '#':
             nl = client_str_io.readline()
-        #last line is empty
-        nl = client_str_io.readline()
+        #last line is Client not sure must I parse it
+        #nl = client_str_io.readline()
             
         client_str = client_str_io.read();
         
-        self._parse_datetime_option(client_str, "Update:") #TODO: change to datetime
-        self._parse_datetime_option(client_str, "Access:") #TODO: change to datetime
+        self._parse_string_option(client_str, "Client:")
+        self._parse_datetime_option(client_str, "Update:")
+        self._parse_datetime_option(client_str, "Access:")
         self._parse_string_option(client_str, "Owner:")
         self._parse_string_option(client_str, "Host:")
-        #client_config = self._parse_string_option(client_str, "Description:", client_config) #TODO: make method for parsing long text
+        self._parse_description_option(client_str)
         self._parse_string_option(client_str, "Root:")
         self._parse_list_option(client_str, "Options:")
         self._parse_list_option(client_str, "SubmitOptions:")
         self._parse_string_option(client_str, "LineEnd:")
         self._parse_view_option(client_str)
-        
-        print self._p4conf.__dict__.keys()
-        print self._p4conf.__dict__.values()
         
     def _parse_string_option(self, client_str, arg_name):
         ind = client_str.find(arg_name)
@@ -141,6 +167,22 @@ class p4_wrapper:
         
         datetime_parsed = datetime.strptime(nl[len(arg_name):].strip(), "%Y/%m/%d %H:%M:%S")
         self._p4conf.add_property(arg_name[:-1], datetime_parsed)
+        
+    def _parse_description_option(self, client_str):
+        ind = client_str.find("Description:")
+        
+        if ind == -1:
+            return
+        
+        client_str_io = StringIO(client_str[ind:])
+        nl = client_str_io.readline() # "Description:" string
+        nl = client_str_io.readline()
+        description = ""
+        while nl.strip()!="":
+            description += nl.strip('\t')
+            nl = client_str_io.readline()
+            
+        self._p4conf.add_property("Description", description)            
         
     def _parse_view_option(self, client_str):
         ind = client_str.find("View:")
