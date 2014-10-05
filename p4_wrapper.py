@@ -23,7 +23,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 import os
 import subprocess
 from datetime import datetime
-from git_p4_config import get_branch_config
 from cStringIO import StringIO
 import git_wrapper
 
@@ -40,6 +39,14 @@ class p4_client_config(object):
     
     def _set_property(self, name, value):
         setattr(self, "_"+name, value)
+        
+    def get_all_properties(self):
+        result = []
+        
+        for key, value in self.__dict__.iteritems():
+            result.append( (key[1:].lower(), str(value)) )
+        
+        return result
 
 class p4_wrapper:
     def __init__(self):
@@ -53,8 +60,10 @@ class p4_wrapper:
     def set_p4_log(self, p4log):
         self._p4log = p4log
         
-    def p4_login(self, branch_name):
-        (self._p4port, self._p4user, self._p4client) = get_branch_config(branch_name)
+    def p4_login(self, p4port, p4user, p4client):
+        self._p4port = p4port
+        self._p4user = p4user
+        self._p4client = p4client
         os.putenv('P4PORT', self._p4port)
         os.putenv('P4USER', self._p4user)
         os.putenv('P4CLIENT', self._p4client)
@@ -63,6 +72,7 @@ class p4_wrapper:
             print "Problem during login"
         else:
             self._logged = True
+        #TODO: add storing p4_wrapper state in temp file
             
     def p4_logout(self):
         res = subprocess.call('p4 logout', shell=True)
@@ -118,7 +128,6 @@ class p4_wrapper:
         while nl[0] == '#':
             nl = client_str_io.readline()
         #last line is Client not sure must I parse it
-        #nl = client_str_io.readline()
             
         client_str = client_str_io.read();
         

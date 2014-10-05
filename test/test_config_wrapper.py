@@ -1,8 +1,7 @@
-#! /usr/bin/python
 '''
-Created on Sep 20, 2014
+Created on Oct 5, 2014
 
-@author:  Grzegorz Pasieka (grz.pasieka@gmail.com)
+@author:  Grzegorz Pasieka
 
 Copyright (C) 2014  Grzegorz Pasieka
 
@@ -25,17 +24,12 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.getcwd()+"/.."))
-from config_wrapper import get_branch_config
-from p4_wrapper import p4_wrapper
+
+import config_wrapper
 
 def main(argv):
-    p4w = p4_wrapper()
-    (p4port, p4user, p4client) = get_branch_config("test-branch")
-    p4w.p4_login(p4port, p4user, p4client)
-    p4w.p4_client_read()
-    p4w._p4conf._set_property("Description", "DUPA DUPA DUPA")
-    p4w.p4_client_write()
-    p4w.p4_logout()
+    print config_wrapper.get_all_config()
+    print config_wrapper.get_branch_config("test-branch")
     
 if __name__ == "__main__":
     main(sys.argv)

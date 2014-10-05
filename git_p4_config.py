@@ -19,48 +19,25 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 '''
-import os
-import git_wrapper
-import ConfigParser
 
-P4CONFIG_PATH =git_wrapper.get_repo_topdir()+"/.git/p4config"
+import config_wrapper
 
-def git_p4_config_list():
-    if False == os.path.exists(P4CONFIG_PATH):
-        print "No config file"
-        return
-    else:
-        with open(P4CONFIG_PATH, "r") as config_file:
-            print config_file.read()
-
-def git_p4_config_write(options):    
-    config_parser = ConfigParser.ConfigParser()
-    config_parser.read(P4CONFIG_PATH)
-    
-    av_sections = config_parser.sections()
-    
-    if options.branch not in av_sections:
-        config_parser.add_section(options.branch)
-        
-    config_parser.set(options.branch, 'port', options.port)
-    config_parser.set(options.branch, 'user', options.user)
-    config_parser.set(options.branch, 'client', options.client)
-    if options.passwd != None:
-        config_parser.set(options.branch, 'passwd', options.passwd)
-                
-    with open(P4CONFIG_PATH, "w+") as config_file:
-        config_parser.write(config_file)
-        
-def get_branch_config(branch_name):
-    config_parser = ConfigParser.ConfigParser()
-    config_parser.read(P4CONFIG_PATH)
-    p4_port = config_parser.get(branch_name, 'port')
-    p4_user = config_parser.get(branch_name, 'user')
-    p4_client = config_parser.get(branch_name, 'client')
-    return (p4_port, p4_user, p4_client)
-    
 def git_p4_config(options):
+    if False == config_wrapper.is_p4_repo():
+        print "ERROR: No P4 branch in this repository"
+        return
+    
+    if config_wrapper.is_p4_branch(options.branch) == False: #TODO: add listing all branches exception
+        print "ERROR: "+options.branch+" is not P4 branch"
+        return
+    
     if options.list == True:
         git_p4_config_list()
+    #else:
+    #    git_p4_config_write(options)
+        
+def git_p4_config_list(branch_name):
+    if branch_name == None:
+        print config_wrapper.get_all_config()
     else:
-        git_p4_config_write(options)
+        print config_wrapper.get_branch_config(branch_name)
