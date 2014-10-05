@@ -20,12 +20,28 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 '''
 
+import os
 import p4_wrapper
-from config_wrapper import new_branch_config
+import git_wrapper
+import config_wrapper
 
 def git_p4_init(options):
     p4w = p4_wrapper()
-    p4w.p4login(options.port, options.user. client)
-    p4w.p4_client_read()
-    new_branch_config(options.branch, p4w.__p4conf.get_all_properties())    
+    #Login to workspace
+    p4w.p4login(options.port, options.user, options.client)
+    #Read client spec
+    p4conf = p4w.p4_client_read()
+    #Add client to config
+    config_wrapper.new_branch_config(options.branch, p4conf.get_all_properties())
+    #change root & write client config to p4 & config file
+    new_root = git_wrapper.get_repo_topdir()+"/.git/"+options.branch #TODO: per branch inner p4 repo?
+    os.mkdir(new_root)
+    p4conf.set_property("Root", new_root)
+    p4w.p4_client_write(p4conf)
+    config_wrapper.set_branch_config(options.branch, p4conf.get_all_properties())    
+    #TODO: get from/to changelists numbers
+    #TODO: sync files into inner p4 repo
+    #TODO: copy every changelist to git repo, commit it & prepare proper commit message
+    #TODO: set p4 head
+        
     p4w.p4_logout()

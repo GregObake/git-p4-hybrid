@@ -45,7 +45,7 @@ def get_branch_config(branch_name):
     
     return result
 
-def change_branch_config(branch_name, p4_config):
+def set_branch_config(branch_name, p4_config):
     config_parser = ConfigParser.ConfigParser()
     config_parser.read(P4CONFIG_PATH)
     av_sections = config_parser.sections()
@@ -56,6 +56,21 @@ def change_branch_config(branch_name, p4_config):
     for name, value in p4_config.__dict__.iteritems():
         if value != None and name != 'branch':
             config_parser.set(branch_name, name, value)
+                
+    with open(P4CONFIG_PATH, "w+") as config_file:
+        config_parser.write(config_file)
+        
+def set_branch_config_option(branch_name, option_name, option_val):
+    config_parser = ConfigParser.ConfigParser()
+    config_parser.read(P4CONFIG_PATH)
+    av_sections = config_parser.sections()
+    
+    if branch_name not in av_sections:
+        print "ERROR: no such P4 branch"
+        return
+    
+    if option_name != None and option_val != None:
+        config_parser.set(branch_name, option_name, option_val)
                 
     with open(P4CONFIG_PATH, "w+") as config_file:
         config_parser.write(config_file)

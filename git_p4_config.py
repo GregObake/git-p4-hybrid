@@ -21,18 +21,32 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 '''
 
 import config_wrapper
+import git_wrapper
 
 def git_p4_config(options):
     if False == config_wrapper.is_p4_repo():
         print "ERROR: No P4 branch in this repository"
         return
     
-    if config_wrapper.is_p4_branch(options.branch) == False: #TODO: add listing all branches exception
-        print "ERROR: "+options.branch+" is not P4 branch"
+    #List all p4 branches configuration
+    if options.list_all == True:
+        git_p4_config_list(None)
         return
     
+    #Set branch for next operations & check it
+    current_branch = ""    
+    if options.branch == None:
+        current_branch = git_wrapper.get_current_branch()
+    else:
+        current_branch = options.branch        
+    if config_wrapper.is_p4_branch(current_branch) == False:
+        print "ERROR: "+current_branch+" is not P4 branch"
+        return
+    
+    #List selected p4 branch configuration 
     if options.list == True:
-        git_p4_config_list()
+        git_p4_config_list(current_branch)    
+    
     #else:
     #    git_p4_config_write(options)
         

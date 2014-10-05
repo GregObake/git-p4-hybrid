@@ -26,11 +26,13 @@ from datetime import datetime
 from cStringIO import StringIO
 import git_wrapper
 
+#FIXME: Add good error handling to this wrapper
+
 class p4_client_config(object):
     def add_property(self, name, value):
         fget = lambda self: self._get_property(name)
-        fset = lambda self, value: self._set_property(name, value)
-        
+        fset = lambda self, value: self._set_property(name, value)   
+             
         setattr(self.__class__, name, property(fget, fset))
         setattr(self, "_"+name, value)
         
@@ -41,11 +43,15 @@ class p4_client_config(object):
         setattr(self, "_"+name, value)
         
     def get_all_properties(self):
-        result = []
-        
+        result = []        
         for key, value in self.__dict__.iteritems():
-            result.append( (key[1:].lower(), str(value)) )
-        
+            result.append( (key[1:].lower(), str(value)) )        
+        return result
+    
+    def __str__(self):
+        result = ""        
+        for key, value in self.__dict__.iteritems():
+            result += key[1:] +": "+str(value)+"\n"            
         return result
 
 class p4_wrapper:
@@ -54,8 +60,7 @@ class p4_wrapper:
         self._p4port = None
         self._p4user = None
         self._p4client = None
-        self._p4log = False        
-        self._p4conf = p4_client_config()
+        self._p4log = False
         
     def set_p4_log(self, p4log):
         self._p4log = p4log
@@ -72,7 +77,7 @@ class p4_wrapper:
             print "Problem during login"
         else:
             self._logged = True
-        #TODO: add storing p4_wrapper state in temp file
+        #FIXME: add storing p4_wrapper state in temp file
             
     def p4_logout(self):
         res = subprocess.call('p4 logout', shell=True)
@@ -86,16 +91,16 @@ class p4_wrapper:
             return False
         
         res = subprocess.check_output('p4 client -o', shell=True)
-        self._parse_p4_client(res)
+        p4conf = self._parse_p4_client(res)
         
-        return res
+        return p4conf
     
-    def p4_client_write(self):
+    def p4_client_write(self, p4conf):
         if self._logged == False:
             return False
         
         output = ""
-        for key, value in self._p4conf.__dict__.iteritems():
+        for key, value in p4conf.__dict__.iteritems():
             output += key[1:]+":"    
             if type(value) == str:
                 output += "\t"+value
@@ -122,6 +127,7 @@ class p4_wrapper:
         print res
     
     def _parse_p4_client(self, to_parse):
+        p4conf = p4_client_config()
         client_str_io = StringIO(to_parse)
         #first of all go to the end of long comment
         nl = client_str_io.readline()
@@ -131,19 +137,21 @@ class p4_wrapper:
             
         client_str = client_str_io.read();
         
-        self._parse_string_option(client_str, "Client:")
-        self._parse_datetime_option(client_str, "Update:")
-        self._parse_datetime_option(client_str, "Access:")
-        self._parse_string_option(client_str, "Owner:")
-        self._parse_string_option(client_str, "Host:")
-        self._parse_description_option(client_str)
-        self._parse_string_option(client_str, "Root:")
-        self._parse_list_option(client_str, "Options:")
-        self._parse_list_option(client_str, "SubmitOptions:")
-        self._parse_string_option(client_str, "LineEnd:")
-        self._parse_view_option(client_str)
+        p4conf = self._parse_string_option(client_str, p4conf, "Client:")
+        p4conf = self._parse_datetime_option(client_str, p4conf, "Update:")
+        p4conf = self._parse_datetime_option(client_str, p4conf, "Access:")
+        p4conf = self._parse_string_option(client_str, p4conf, "Owner:")
+        p4conf = self._parse_string_option(client_str, p4conf, "Host:")
+        p4conf = self._parse_description_option(client_str, p4conf)
+        p4conf = self._parse_string_option(client_str, p4conf, "Root:")
+        p4conf = self._parse_list_option(client_str, p4conf, "Options:")
+        p4conf = self._parse_list_option(client_str, p4conf, "SubmitOptions:")
+        p4conf = self._parse_string_option(client_str, p4conf, "LineEnd:")
+        p4conf = self._parse_view_option(client_str, p4conf)
         
-    def _parse_string_option(self, client_str, arg_name):
+        return p4conf
+        
+    def _parse_string_option(self, client_str, p4conf, arg_name):
         ind = client_str.find(arg_name)
         
         if ind == -1:
@@ -152,9 +160,11 @@ class p4_wrapper:
         client_str_io = StringIO(client_str[ind:])
         nl = client_str_io.readline()
         words = nl.split()
-        self._p4conf.add_property(arg_name[:-1], words[1])
+        p4conf.add_property(arg_name[:-1], words[1])
         
-    def _parse_list_option(self, client_str, arg_name):
+        return p4conf
+        
+    def _parse_list_option(self, client_str, p4conf, arg_name):
         ind = client_str.find(arg_name)
         
         if ind == -1:
@@ -163,9 +173,11 @@ class p4_wrapper:
         client_str_io = StringIO(client_str[ind:])
         nl = client_str_io.readline()
         words = nl.split()
-        self._p4conf.add_property(arg_name[:-1], words[1:])
+        p4conf.add_property(arg_name[:-1], words[1:])
         
-    def _parse_datetime_option(self, client_str, arg_name):
+        return p4conf
+        
+    def _parse_datetime_option(self, client_str, p4conf, arg_name):
         ind = client_str.find(arg_name)
         
         if ind == -1:
@@ -175,9 +187,11 @@ class p4_wrapper:
         nl = client_str_io.readline()
         
         datetime_parsed = datetime.strptime(nl[len(arg_name):].strip(), "%Y/%m/%d %H:%M:%S")
-        self._p4conf.add_property(arg_name[:-1], datetime_parsed)
+        p4conf.add_property(arg_name[:-1], datetime_parsed)
         
-    def _parse_description_option(self, client_str):
+        return p4conf
+        
+    def _parse_description_option(self, client_str, p4conf):
         ind = client_str.find("Description:")
         
         if ind == -1:
@@ -191,9 +205,11 @@ class p4_wrapper:
             description += nl.strip('\t')
             nl = client_str_io.readline()
             
-        self._p4conf.add_property("Description", description)            
+        p4conf.add_property("Description", description)
         
-    def _parse_view_option(self, client_str):
+        return p4conf       
+        
+    def _parse_view_option(self, client_str, p4conf):
         ind = client_str.find("View:")
         
         if ind == -1:
@@ -209,4 +225,6 @@ class p4_wrapper:
             view[mapping[0]] = mapping[1]
             nl = client_str_io.readline()
             
-        self._p4conf.add_property("View", view)
+        p4conf.add_property("View", view)
+        
+        return p4conf

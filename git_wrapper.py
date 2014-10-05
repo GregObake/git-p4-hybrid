@@ -24,3 +24,6 @@ import subprocess
 
 def get_repo_topdir():
     return subprocess.check_output('git rev-parse --show-toplevel', shell=True).strip("\n")
+
+def get_current_branch():
+    return subprocess.check_output('git rev-parse --abbrev-ref HEAD', shell=True).strip("\n")

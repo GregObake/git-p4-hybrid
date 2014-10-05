@@ -25,16 +25,17 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.getcwd()+"/.."))
-from config_wrapper import get_branch_config
+from config_wrapper import get_branch_credentials
 from p4_wrapper import p4_wrapper
 
 def main(argv):
     p4w = p4_wrapper()
-    (p4port, p4user, p4client) = get_branch_config("test-branch")
+    (p4port, p4user, p4client) = get_branch_credentials("test-branch")
     p4w.p4_login(p4port, p4user, p4client)
-    p4w.p4_client_read()
-    p4w._p4conf._set_property("Description", "DUPA DUPA DUPA")
-    p4w.p4_client_write()
+    p4conf = p4w.p4_client_read()
+    print p4conf
+    p4conf.Description = "DUPA DUPA DUPA"
+    p4w.p4_client_write(p4conf)
     p4w.p4_logout()
     
 if __name__ == "__main__":
