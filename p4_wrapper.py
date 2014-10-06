@@ -65,6 +65,10 @@ class p4_wrapper:
     def set_p4_log(self, p4log):
         self._p4log = p4log
         
+    def print_log(self, msg):
+        if self._p4log:
+            print msg
+        
     def p4_login(self, p4port, p4user, p4client):
         self._p4port = p4port
         self._p4user = p4user
@@ -74,7 +78,7 @@ class p4_wrapper:
         os.putenv('P4CLIENT', self._p4client)
         res = subprocess.call('p4 login', shell=True)
         if res != 0:
-            print "Problem during login"
+            print "FATAL: Problem during login"
         else:
             self._logged = True
         #FIXME: add storing p4_wrapper state in temp file
@@ -82,7 +86,7 @@ class p4_wrapper:
     def p4_logout(self):
         res = subprocess.call('p4 logout', shell=True)
         if res != 0:
-            print "Problem during logout"
+            print "FATAL: Problem during logout"
         else:
             self._logged = False
             
@@ -125,6 +129,39 @@ class p4_wrapper:
         os.remove(temp_path)
         
         print res
+        
+    def p4_changelists(self, path, change_from, change_to):
+        command = "p4 changes -t submitted "+path
+        if change_from != None and change_to != None:
+            command += "@"+change_from+",@"+change_to
+        elif change_from != None and change_to == None:
+            command += "@"+change_from+",@now"
+        elif change_from == None and change_to != None:
+            command += "@"+change_to
+        res = subprocess.check_output(command, shell=True)
+        
+        return res
+    
+    def p4_files(self, path, change_from, change_to):
+        command = "p4 files -o "+path
+        if change_from != None and change_to != None:
+            command += "@"+change_from+",@"+change_to
+        elif change_from != None and change_to == None:
+            command += "@"+change_from+",@now"
+        elif change_from == None and change_to != None:
+            command += "@"+change_to
+        res = subprocess.check_output(command, shell=True)
+        
+        return res
+        
+    def p4_sync(self, path, changelist, force):
+        #TODO: consider using --parallel flag
+        command = "p4 sync "
+        if force == True:
+            command += "-f "
+        command += path+"@"+changelist
+        #TODO: put it in separate thread and catch stdout to scan it for results
+        res = subprocess.call(command, shell=True)
     
     def _parse_p4_client(self, to_parse):
         p4conf = p4_client_config()
@@ -137,17 +174,17 @@ class p4_wrapper:
             
         client_str = client_str_io.read();
         
-        p4conf = self._parse_string_option(client_str, p4conf, "Client:")
-        p4conf = self._parse_datetime_option(client_str, p4conf, "Update:")
-        p4conf = self._parse_datetime_option(client_str, p4conf, "Access:")
-        p4conf = self._parse_string_option(client_str, p4conf, "Owner:")
-        p4conf = self._parse_string_option(client_str, p4conf, "Host:")
-        p4conf = self._parse_description_option(client_str, p4conf)
-        p4conf = self._parse_string_option(client_str, p4conf, "Root:")
-        p4conf = self._parse_list_option(client_str, p4conf, "Options:")
-        p4conf = self._parse_list_option(client_str, p4conf, "SubmitOptions:")
-        p4conf = self._parse_string_option(client_str, p4conf, "LineEnd:")
-        p4conf = self._parse_view_option(client_str, p4conf)
+        self._parse_string_option(client_str, p4conf, "Client:")
+        self._parse_datetime_option(client_str, p4conf, "Update:")
+        self._parse_datetime_option(client_str, p4conf, "Access:")
+        self._parse_string_option(client_str, p4conf, "Owner:")
+        self._parse_string_option(client_str, p4conf, "Host:")
+        self._parse_description_option(client_str, p4conf)
+        self._parse_string_option(client_str, p4conf, "Root:")
+        self._parse_list_option(client_str, p4conf, "Options:")
+        self._parse_list_option(client_str, p4conf, "SubmitOptions:")
+        self._parse_string_option(client_str, p4conf, "LineEnd:")
+        self._parse_view_option(client_str, p4conf)
         
         return p4conf
         
@@ -162,8 +199,6 @@ class p4_wrapper:
         words = nl.split()
         p4conf.add_property(arg_name[:-1], words[1])
         
-        return p4conf
-        
     def _parse_list_option(self, client_str, p4conf, arg_name):
         ind = client_str.find(arg_name)
         
@@ -174,8 +209,6 @@ class p4_wrapper:
         nl = client_str_io.readline()
         words = nl.split()
         p4conf.add_property(arg_name[:-1], words[1:])
-        
-        return p4conf
         
     def _parse_datetime_option(self, client_str, p4conf, arg_name):
         ind = client_str.find(arg_name)
@@ -188,8 +221,6 @@ class p4_wrapper:
         
         datetime_parsed = datetime.strptime(nl[len(arg_name):].strip(), "%Y/%m/%d %H:%M:%S")
         p4conf.add_property(arg_name[:-1], datetime_parsed)
-        
-        return p4conf
         
     def _parse_description_option(self, client_str, p4conf):
         ind = client_str.find("Description:")
@@ -206,8 +237,6 @@ class p4_wrapper:
             nl = client_str_io.readline()
             
         p4conf.add_property("Description", description)
-        
-        return p4conf       
         
     def _parse_view_option(self, client_str, p4conf):
         ind = client_str.find("View:")
@@ -226,5 +255,3 @@ class p4_wrapper:
             nl = client_str_io.readline()
             
         p4conf.add_property("View", view)
-        
-        return p4conf
