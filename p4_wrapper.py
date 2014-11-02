@@ -69,35 +69,47 @@ class p4_wrapper:
         if self._p4log:
             print msg
         
-    def p4_login(self, p4port, p4user, p4client):
+    def p4_login(self, p4port, p4user, p4client, p4passwd):
         self._p4port = p4port
         self._p4user = p4user
         self._p4client = p4client
         os.putenv('P4PORT', self._p4port)
         os.putenv('P4USER', self._p4user)
         os.putenv('P4CLIENT', self._p4client)
-        res = subprocess.call('p4 login', shell=True)
+        
+        if(p4passwd != None):
+            login = subprocess.Popen('p4 login', shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=None)     
+            login.communicate(input=p4passwd)
+            res = login.returncode
+        else:
+            res = subprocess.call('p4 login', stdout=subprocess.PIPE, shell=True)
+            
         if res != 0:
             print "FATAL: Problem during login"
         else:
             self._logged = True
-        #FIXME: add storing p4_wrapper state in temp file
+        #FIXME: add storing p4_wrapper state in temp file        
+        return not bool(res)
             
     def p4_logout(self):
-        res = subprocess.call('p4 logout', shell=True)
+        res = subprocess.call('p4 logout', shell=True, stdout=subprocess.PIPE)
         if res != 0:
             print "FATAL: Problem during logout"
         else:
             self._logged = False
+        return not bool(res)
             
     def p4_client_read(self):
         if self._logged == False:
-            return False
+            return (False, None)
         
-        res = subprocess.check_output('p4 client -o', shell=True)
-        p4conf = self._parse_p4_client(res)
+        p4_read = subprocess.Popen('p4 client -o', shell=True, stdout=subprocess.PIPE)
+        (read_out, read_err) = p4_read.communicate()
+        if p4_read.returncode != 0:
+            return (False, None)
+        p4conf = self._parse_p4_client(read_out)
         
-        return p4conf
+        return (True, p4conf)
     
     def p4_client_write(self, p4conf):
         if self._logged == False:
@@ -125,12 +137,12 @@ class p4_wrapper:
         with open(temp_path, "w") as temp_file:
             temp_file.write(output)
             
-        res = subprocess.check_output('p4 client -i < '+temp_path, shell=True)
+        res = subprocess.call('p4 client -i < '+temp_path, shell=True, stdout=subprocess.PIPE)
         os.remove(temp_path)
         
-        print res
+        return not bool(res)
         
-    def p4_changelists(self, path, change_from, change_to):
+    def p4_changelists(self, path="//...", change_from=None, change_to=None):
         command = "p4 changes -t submitted "+path
         if change_from != None and change_to != None:
             command += "@"+change_from+",@"+change_to

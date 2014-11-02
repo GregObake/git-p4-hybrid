@@ -28,15 +28,90 @@ sys.path.append(os.path.abspath(os.getcwd()+"/.."))
 from config_wrapper import get_branch_credentials
 from p4_wrapper import p4_wrapper
 
+#globals
+p4port = ""
+p4user = ""
+p4client = ""
+p4passwd = "zaq12WSX"
+
 def main(argv):
-    p4w = p4_wrapper()
+    global p4port
+    global p4user
+    global p4client
+    global p4passwd
+        
     (p4port, p4user, p4client) = get_branch_credentials("test-branch")
-    p4w.p4_login(p4port, p4user, p4client)
-    p4conf = p4w.p4_client_read()
-    print p4conf
-    p4conf.Description = "DUPA DUPA DUPA"
+    
+    res = test_logging()
+    print "test_logging: "+str(res)
+    if not res:        
+        return
+    
+    res = test_client_read_write()
+    print "test_client_read_write: "+str(res)
+    res = test_changelists()
+    print "test_changelists: "+str(res)
+    res = test_files()
+    print "test_files: "+str(res)
+    res = test_sync()    
+    print "test_sync: "+str(res)
+    
+def test_logging():
+    p4w = p4_wrapper()
+    res = p4w.p4_login(p4port, p4user, p4client, p4passwd)
+    if res:
+        res = p4w.p4_logout()
+    return res
+
+def test_client_read_write():
+    p4w = p4_wrapper()
+    res = p4w.p4_login(p4port, p4user, p4client, p4passwd)
+    if not res:
+        return res
+    
+    (res, p4conf) = p4w.p4_client_read()
+    
+    if res == False or p4conf == None:
+        print "ERROR: p4_client_read failed"
+        p4w.p4_logout()
+        return False
+    
+    old_descr = p4conf.Description
+    p4conf.Description = "New descr"
     p4w.p4_client_write(p4conf)
-    p4w.p4_logout()
+    (res, p4conf) = p4w.p4_client_read()
+    if p4conf.Description != "New descr\n":
+        print "ERROR: Description has not changed (1st)"
+        res = p4w.p4_logout()
+        return False
+    
+    p4conf.Description = old_descr
+    p4w.p4_client_write(p4conf)
+    (res, p4conf) = p4w.p4_client_read()
+    if p4conf.Description != old_descr:
+        print "ERROR: Description has not changed (2st)"
+        res = p4w.p4_logout()
+        return False
+    
+    res = p4w.p4_logout()
+    return res 
+
+def test_changelists():
+    p4w = p4_wrapper()
+    res = p4w.p4_login(p4port, p4user, p4client, p4passwd)
+    if not res:
+        return res
+    
+    print p4w.p4_changelists()    
+    
+    res = p4w.p4_logout()
+    return res 
+
+def test_files():
+    return False
+
+def test_sync():
+    return False
     
 if __name__ == "__main__":
     main(sys.argv)
