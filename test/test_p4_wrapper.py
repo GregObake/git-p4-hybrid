@@ -143,7 +143,13 @@ def test_files():
     return res 
 
 def test_sync():
-    return False
+    p4w = p4_wrapper()
+    res = p4w.p4_login(p4port, p4user, p4client, p4passwd)
+    if not res:
+        return False
+    
+    res = p4w.p4_sync(None, '#head', True, True, 0)
+    return res
     
 if __name__ == "__main__":
     main(sys.argv)

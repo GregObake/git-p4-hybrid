@@ -21,6 +21,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 '''
 
 import os
+import sys
+import io
+import time
 import subprocess
 from datetime import datetime
 from cStringIO import StringIO
@@ -196,14 +199,54 @@ class p4_wrapper:
         
         return (res, files)
         
-    def p4_sync(self, path, changelist, force):
+    def p4_sync(self, path=None, changelist='#head', force=True, track_progr=False, file_no=0):
         #TODO: consider using --parallel flag
         command = "p4 sync "
         if force == True:
             command += "-f "
-        command += path+"@"+changelist
-        #TODO: put it in separate thread and catch stdout to scan it for results
-        res = subprocess.call(command, shell=True)
+        
+        if path == None:
+            path = "//..."
+        command += path
+        if changelist.isdigit():
+            command += "@"+changelist
+        else: 
+            command += changelist            
+        
+        #TODO: add parsing output into some struct and return it instead of printing to console
+        if track_progr:
+            filename = 'sync.log'
+            with io.open(filename, 'wb') as writer, io.open(filename, 'rb', 1) as reader:
+                syncproc = subprocess.Popen(command, shell=True, stdin=None, stdout=writer, stderr=None)
+                linecount = 0
+                while syncproc.poll() is None:
+                    stdoutline = reader.readline()
+                    if stdoutline.strip() != "":
+                        linecount += 1
+                        outstr = ""
+                        if file_no != 0:
+                            outstr = str(round(float(linecount)/file_no*100.0, 2))+"%\r"
+                        else:
+                            outstr = "File no: "+str(linecount) + " " + stdoutline
+                        sys.stdout.write(outstr)
+                    time.sleep(0.1)
+                # Read the remaining
+                stdoutline = reader.readline()
+                while stdoutline.strip() != "":
+                    linecount += 1
+                    if file_no != 0:
+                        outstr = str(round(float(linecount)/file_no*100.0, 2))+"%\r"
+                    else:
+                        outstr = "File no: "+str(linecount) + " " + stdoutline
+                    sys.stdout.write(outstr)
+                    stdoutline = reader.readline()
+                    
+            os.remove(filename)
+            res = syncproc.returncode
+        else:
+            res = subprocess.call(command, shell=True, stdout=subprocess.PIPE)
+            
+        return not bool(res)
     
     def _parse_p4_client(self, to_parse):
         p4conf = p4_client_config()
