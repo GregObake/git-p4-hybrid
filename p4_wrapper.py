@@ -58,7 +58,22 @@ class p4_client_config(properties):
     pass
 
 class p4_changelist(properties):
-    pass
+    def __init__(self, change_no, change_date, user, workspace, desc, raw):
+        self._ch_no = change_no
+        self._ch_date = change_date
+        self._user = user
+        self._workspace = workspace
+        self._desc = desc
+        self._raw = raw #TODO: raw probably to delete. keeping it now for debug purpose
+        
+class p4_file(properties):
+    def __init__(self, path, rev, action, change_no, file_type, raw):
+        self._path = path
+        self._rev = rev
+        self._action = action
+        self._change_no = change_no
+        self._file_type = file_type
+        self._raw = raw
 
 class p4_wrapper:
     def __init__(self):
@@ -157,20 +172,29 @@ class p4_wrapper:
         elif change_from == None and change_to != None:
             command += "@"+change_to
         res = subprocess.check_output(command, shell=True)
+                
+        changelists = self._parse_changelists(res)
         
-        return res
+        return (res, changelists)
     
-    def p4_files(self, path, change_from, change_to):
-        command = "p4 files -o "+path
-        if change_from != None and change_to != None:
+    def p4_files(self, path=None, change_from=None, change_to=None):
+        command = "p4 files "
+        if path != None:
+            command += path
+        elif change_from != None and change_to != None:
             command += "@"+change_from+",@"+change_to
         elif change_from != None and change_to == None:
             command += "@"+change_from+",@now"
         elif change_from == None and change_to != None:
             command += "@"+change_to
+            
+        if path == None and change_from == None and change_to == None:
+            command += "//..."
         res = subprocess.check_output(command, shell=True)
         
-        return res
+        files = self._parse_files(res)
+        
+        return (res, files)
         
     def p4_sync(self, path, changelist, force):
         #TODO: consider using --parallel flag
@@ -278,4 +302,33 @@ class p4_wrapper:
         changelists = []
         changelists_str_io = StringIO(changelists_str)
         nl = changelists_str_io.readline()
+        
+        while nl.strip()!="":
+            change = nl.split()
+            change_no = change[1]
+            change_date = datetime.strptime(change[3]+" "+change[4], "%Y/%m/%d %H:%M:%S")
+            user = change[6].split('@')[0]
+            workspace = change[6].split('@')[1]
+            desc = nl.rsplit('\'')[1]
+            changelists.append(p4_changelist(change_no, change_date, user, workspace, desc, nl))
+            nl = changelists_str_io.readline()
+            
+        return changelists
+    
+    def _parse_files(self, files_str):
+        files = []
+        files_str_io = StringIO(files_str)
+        nl = files_str_io.readline()
+        
+        while nl.strip()!="":
+            file_str = nl.split()
+            path = file_str[0].split("#")[0]
+            rev = file_str[0].split("#")[1]
+            action = file_str[2]
+            change_no = file_str[4]
+            file_type = file_str[5][1:-1]
+            files.append(p4_file(path, rev, action, change_no, file_type, nl))  
+            nl = files_str_io.readline()          
+        
+        return files
         

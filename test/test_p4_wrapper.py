@@ -41,6 +41,7 @@ def main(argv):
     global p4passwd
         
     (p4port, p4user, p4client) = get_branch_credentials("test-branch")
+    #TODO: add creating p4 for test
     
     res = test_logging()
     print "test_logging: "+str(res)
@@ -100,15 +101,46 @@ def test_changelists():
     p4w = p4_wrapper()
     res = p4w.p4_login(p4port, p4user, p4client, p4passwd)
     if not res:
-        return res
+        return False
     
-    print p4w.p4_changelists()    
+    (res, changes_all) = p4w.p4_changelists()    
+    if len(changes_all) == 0:
+        print "ERROR: Getting all changelists failed"
+        return False
+    
+    #TODO: add more tests for various cases
     
     res = p4w.p4_logout()
     return res 
 
 def test_files():
-    return False
+    p4w = p4_wrapper()
+    res = p4w.p4_login(p4port, p4user, p4client, p4passwd)
+    if not res:
+        return False
+    
+    (res, files_all) = p4w.p4_files()    
+    if len(files_all) == 0:
+        print "ERROR: Getting all files failed"
+        return False
+
+    (res, files_ch1) = p4w.p4_files(None, None, "1")    
+    if len(files_ch1) != 1:
+        print "ERROR: Getting files from changelist no 1 failed"
+        return False
+    
+    (res, files_ch2) = p4w.p4_files(None, "1", "2")    
+    if len(files_ch2) != 2:
+        print "ERROR: Getting files from changelists no 1-2 failed"
+        return False
+    
+    (res, files_ch3) = p4w.p4_files(None, "2", None)    
+    if len(files_ch3) != 3:
+        print "ERROR: Getting files from changelists no 2-now failed"
+        return False
+    
+    res = p4w.p4_logout()
+    return res 
 
 def test_sync():
     return False
