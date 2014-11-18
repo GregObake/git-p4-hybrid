@@ -24,6 +24,17 @@ import config_wrapper
 import git_wrapper
 from p4_wrapper import p4_wrapper
 
+## Configure git-p4 hybrid branch
+#
+# @param options config command options
+# list - list selected branch configuration
+# list_all - list configuration for all branches
+# branch - branch name, if None current branch is taken
+# port - p4 server addr
+# user - p4 user
+# client - p4 workspace name
+# root - p4 root directory path
+# passwd - p4 password
 def git_p4_config(options):
     if False == config_wrapper.is_p4_repo():
         print "ERROR: No P4 branch in this repository"

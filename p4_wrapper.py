@@ -21,9 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 '''
 
 import os
-import sys
 import io
-import time
 import subprocess
 from datetime import datetime
 from cStringIO import StringIO
@@ -79,6 +77,11 @@ class p4_file(properties):
         self._raw = raw
 
 class p4_wrapper:
+    _s_logged = False
+    _s_p4port = None
+    _s_p4user = None
+    _s_p4client = None
+    
     def __init__(self):
         self._logged = False
         self._p4port = None
@@ -113,7 +116,7 @@ class p4_wrapper:
         else:
             self._logged = True
         #FIXME: add storing p4_wrapper state in temp file        
-        return not bool(res)
+        return not bool(res)    
             
     def p4_logout(self):
         res = subprocess.call('p4 logout', shell=True, stdout=subprocess.PIPE)
@@ -122,6 +125,27 @@ class p4_wrapper:
         else:
             self._logged = False
         return not bool(res)
+    
+    def is_logged(self):
+        return self._logged
+    
+    def save_state(self):
+        p4_wrapper._s_logged = self._logged
+        p4_wrapper._s_p4port = self._p4port
+        p4_wrapper._s_p4user = self._p4user
+        p4_wrapper._s_p4client = self._p4client
+        
+    def load_state(self):
+        self._logged = p4_wrapper._s_logged 
+        self._p4port = p4_wrapper._s_p4port
+        self._p4user = p4_wrapper._s_p4user
+        self._p4client =p4_wrapper._s_p4client
+        
+    def reset_state(self):
+        p4_wrapper._s_logged = False
+        p4_wrapper._s_p4port = None
+        p4_wrapper._s_p4user = None
+        p4_wrapper._s_p4client = None
             
     def p4_client_read(self):
         if self._logged == False:
@@ -228,8 +252,8 @@ class p4_wrapper:
                             outstr = str(round(float(linecount)/file_no*100.0, 2))+"%\r"
                         else:
                             outstr = "File no: "+str(linecount) + " " + stdoutline
-                        sys.stdout.write(outstr)
-                    time.sleep(0.1)
+                        self.printlog(outstr[:-1])
+                        
                 # Read the remaining
                 stdoutline = reader.readline()
                 while stdoutline.strip() != "":
@@ -238,7 +262,7 @@ class p4_wrapper:
                         outstr = str(round(float(linecount)/file_no*100.0, 2))+"%\r"
                     else:
                         outstr = "File no: "+str(linecount) + " " + stdoutline
-                    sys.stdout.write(outstr)
+                    self.printlog(outstr[:-1])
                     stdoutline = reader.readline()
                     
             os.remove(filename)

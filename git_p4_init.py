@@ -25,6 +25,14 @@ import p4_wrapper
 import git_wrapper
 import config_wrapper
 
+## Initialize git-p4 hybrid branch
+#
+# @param options init command options
+# branch - branch name, if None current branch is taken
+# port - p4 server addr
+# user - p4 user
+# client - p4 workspace name
+# passwd - p4 password
 def git_p4_init(options):
     p4w = p4_wrapper()
     #Login to workspace
