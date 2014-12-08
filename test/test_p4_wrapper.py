@@ -39,9 +39,13 @@ def main(argv):
     global p4user
     global p4client
     global p4passwd
+    
+    #change working dir to separate test_proj
+    test_dir = os.path.abspath("../../test_proj")
+    os.chdir(test_dir)
         
     (p4port, p4user, p4client) = get_branch_credentials("test-branch")
-    #TODO: add creating p4 for test
+    #TODO: add creating p4 repo for test
     
     res = test_logging()
     print "test_logging: "+str(res)
@@ -53,7 +57,7 @@ def main(argv):
     res = test_changelists()
     print "test_changelists: "+str(res)
     res = test_files()
-    print "test_files: "+str(res)
+    print "test_files: "+str(res)    
     res = test_sync()    
     print "test_sync: "+str(res)
     
@@ -147,6 +151,10 @@ def test_sync():
     res = p4w.p4_login(p4port, p4user, p4client, p4passwd)
     if not res:
         return False
+    
+    res = p4w.p4_sync(None, '1', True, True, 0)
+    res = p4w.p4_sync(None, '2', True, True, 0)
+    res = p4w.p4_sync(None, 2, True, True, 0)
     
     res = p4w.p4_sync(None, '#head', True, True, 0)
     return res

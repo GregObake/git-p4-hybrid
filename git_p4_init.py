@@ -42,7 +42,7 @@ def git_p4_init(options):
     #Add client to config
     config_wrapper.new_branch_config(options.branch, p4conf.get_all_properties())
     #change root & write client config to p4 & config file
-    new_root = git_wrapper.get_repo_topdir()+"/.git/"+options.branch #TODO: per branch inner p4 repo?
+    new_root = git_wrapper.get_topdir()+"/.git/p4repo_"+options.branch #TODO: per branch inner p4 repo?
     os.mkdir(new_root)
     p4conf.set_property("Root", new_root)
     p4w.p4_client_write(p4conf)

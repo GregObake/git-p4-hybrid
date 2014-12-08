@@ -22,7 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 import subprocess
 
-def get_repo_topdir():
+def get_topdir():
     return subprocess.check_output('git rev-parse --show-toplevel', shell=True).strip("\n")
 
 def get_current_branch():

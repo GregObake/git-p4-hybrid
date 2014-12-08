@@ -24,7 +24,7 @@ import os
 import git_wrapper
 import ConfigParser
 
-P4CONFIG_PATH = git_wrapper.get_repo_topdir()+"/.git/p4config"
+P4CONFIG_PATH = git_wrapper.get_topdir()+"/.git/p4config"
 
 def get_all_config():
     result = dict()

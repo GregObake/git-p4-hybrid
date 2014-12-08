@@ -56,6 +56,7 @@ class properties(object):
         return result    
 
 class p4_client_config(properties):
+    #FIXME: add members instead properties
     pass
 
 class p4_changelist(properties):
@@ -66,28 +67,31 @@ class p4_changelist(properties):
         self._workspace = workspace
         self._desc = desc
         self._raw = raw #TODO: raw probably to delete. keeping it now for debug purpose
+    def make_commit_msg(self):
+        return self._workspace + "\n" + "CL: " + self._ch_no + "\n" + self._user + " " + self._ch_date + "\n" + self._desc
         
 class p4_file(properties):
-    def __init__(self, path, rev, action, change_no, file_type, raw):
+    def __init__(self, path, rev, action, changelist_no, real_path=None):
         self._path = path
         self._rev = rev
         self._action = action
-        self._change_no = change_no
-        self._file_type = file_type
-        self._raw = raw
+        self._changelist_no = changelist_no
+        self._real_path = real_path
 
 class p4_wrapper:
     _s_logged = False
     _s_p4port = None
     _s_p4user = None
     _s_p4client = None
+    _s_p4config = None
     
     def __init__(self):
         self._logged = False
         self._p4port = None
         self._p4user = None
         self._p4client = None
-        self._p4log = False
+        self._p4log = True
+        self._p4config = None
         
     def set_p4_log(self, p4log):
         self._p4log = p4log
@@ -95,7 +99,7 @@ class p4_wrapper:
     def print_log(self, msg):
         if self._p4log:
             print msg
-        
+
     def p4_login(self, p4port, p4user, p4client, p4passwd):
         self._p4port = p4port
         self._p4user = p4user
@@ -134,18 +138,21 @@ class p4_wrapper:
         p4_wrapper._s_p4port = self._p4port
         p4_wrapper._s_p4user = self._p4user
         p4_wrapper._s_p4client = self._p4client
+        p4_wrapper._s_p4config = self._p4config
         
     def load_state(self):
         self._logged = p4_wrapper._s_logged 
         self._p4port = p4_wrapper._s_p4port
         self._p4user = p4_wrapper._s_p4user
-        self._p4client =p4_wrapper._s_p4client
+        self._p4client = p4_wrapper._s_p4client
+        self._p4config = p4_wrapper._s_p4config
         
     def reset_state(self):
         p4_wrapper._s_logged = False
         p4_wrapper._s_p4port = None
         p4_wrapper._s_p4user = None
         p4_wrapper._s_p4client = None
+        p4_wrapper._s_p4config = None
             
     def p4_client_read(self):
         if self._logged == False:
@@ -155,9 +162,9 @@ class p4_wrapper:
         (read_out, read_err) = p4_read.communicate()
         if p4_read.returncode != 0:
             return (False, None)
-        p4conf = self._parse_p4_client(read_out)
+        _p4config = self._parse_p4_client(read_out)
         
-        return (True, p4conf)
+        return (True, _p4config)
     
     def p4_client_write(self, p4conf):
         if self._logged == False:
@@ -180,7 +187,7 @@ class p4_wrapper:
                     output += "\t"+map_in+" "+map_out+"\n"
             output+="\n"
         
-        temp_path = git_wrapper.get_repo_topdir()+"/.git/temp_p4_config"
+        temp_path = git_wrapper.get_topdir()+"/.git/temp_p4_config"
         
         with open(temp_path, "w") as temp_file:
             temp_file.write(output)
@@ -188,6 +195,9 @@ class p4_wrapper:
         res = subprocess.call('p4 client -i < '+temp_path, shell=True, stdout=subprocess.PIPE)
         os.remove(temp_path)
         
+        if res:
+            _p4config = p4conf
+
         return not bool(res)
         
     def p4_changelists(self, path="//...", change_from=None, change_to=None):
@@ -223,7 +233,7 @@ class p4_wrapper:
         
         return (res, files)
         
-    def p4_sync(self, path=None, changelist='#head', force=True, track_progr=False, file_no=0):
+    def p4_sync(self, path=None, changelist='#head', force=True, track_progr=False, file_count=0):
         #TODO: consider using --parallel flag
         command = "p4 sync "
         if force == True:
@@ -232,45 +242,65 @@ class p4_wrapper:
         if path == None:
             path = "//..."
         command += path
-        if changelist.isdigit():
-            command += "@"+changelist
+        if isinstance(changelist, str) and not changelist.isdigit():
+            command += changelist
         else: 
-            command += changelist            
+            command += "@"+str(changelist)
         
-        #TODO: add parsing output into some struct and return it instead of printing to console
+        self.print_log(command)
+        filelist = []
         if track_progr:
             filename = 'sync.log'
             with io.open(filename, 'wb') as writer, io.open(filename, 'rb', 1) as reader:
-                syncproc = subprocess.Popen(command, shell=True, stdin=None, stdout=writer, stderr=None)
+                syncproc = subprocess.Popen(command, shell=True, stdin=None, stdout=writer, stderr=None)                
                 linecount = 0
                 while syncproc.poll() is None:
-                    stdoutline = reader.readline()
-                    if stdoutline.strip() != "":
-                        linecount += 1
-                        outstr = ""
-                        if file_no != 0:
-                            outstr = str(round(float(linecount)/file_no*100.0, 2))+"%\r"
-                        else:
-                            outstr = "File no: "+str(linecount) + " " + stdoutline
-                        self.printlog(outstr[:-1])
-                        
+                    linecount = self._parse_p4_sync_out(reader, filelist, linecount, file_count, changelist)
                 # Read the remaining
-                stdoutline = reader.readline()
-                while stdoutline.strip() != "":
-                    linecount += 1
-                    if file_no != 0:
-                        outstr = str(round(float(linecount)/file_no*100.0, 2))+"%\r"
-                    else:
-                        outstr = "File no: "+str(linecount) + " " + stdoutline
-                    self.printlog(outstr[:-1])
-                    stdoutline = reader.readline()
+                linecount = self._parse_p4_sync_out(reader, filelist, linecount, file_count, changelist)
                     
             os.remove(filename)
             res = syncproc.returncode
         else:
             res = subprocess.call(command, shell=True, stdout=subprocess.PIPE)
             
-        return not bool(res)
+        return not (bool(res), filelist)
+    
+    def strip_p4root(self, path):
+        return path.lstrip(self._p4config._root)
+        
+
+    def _parse_p4_sync_out(self, reader, filelist, linecount, file_no, changelist_no):
+        stdoutline = reader.readline()        
+        if stdoutline.strip() != "":
+            sync_str = stdoutline.split()
+            path = sync_str[0].split("#")[0]
+            file_revision = sync_str[0].split("#")[1]
+            action = self._syncstr_to_actionstr(sync_str[2])
+            real_path = sync_str[3]
+            synced_file = p4_file(path, file_revision, action, changelist_no, real_path)
+            linecount += 1
+            outstr = ""
+            if file_no != 0:
+                outstr = str(round(float(linecount)/file_no*100.0, 2))+"%\r"
+            else:
+                outstr = "File no: "+str(linecount) + " " + stdoutline
+            filelist.append(synced_file)     
+            self.print_log(outstr[:-1])   
+            
+        return linecount    
+
+    def _syncstr_to_actionstr(self, action_str):
+        if action_str == "refreshing":
+            return "edit"
+        elif action_str == "updating":
+            return "edit"
+        elif action_str == "added":
+            return "add"
+        elif action_str == "deleted":
+            return "delete"
+        else:
+            return "invalid" 
     
     def _parse_p4_client(self, to_parse):
         p4conf = p4_client_config()
@@ -390,11 +420,10 @@ class p4_wrapper:
         while nl.strip()!="":
             file_str = nl.split()
             path = file_str[0].split("#")[0]
-            rev = file_str[0].split("#")[1]
+            file_revision = file_str[0].split("#")[1]
             action = file_str[2]
-            change_no = file_str[4]
-            file_type = file_str[5][1:-1]
-            files.append(p4_file(path, rev, action, change_no, file_type, nl))  
+            changelist_no = file_str[4]
+            files.append(p4_file(path, file_revision, action, changelist_no))
             nl = files_str_io.readline()          
         
         return files
