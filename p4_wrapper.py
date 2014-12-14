@@ -56,19 +56,36 @@ class properties(object):
         return result    
 
 class p4_client_config(properties):
-    #FIXME: add members instead properties
+#     def __init__(self):
+#         self._client = ""
+#         self._update = datetime()
+#         self._access = datetime()
+#         self._owner = ""
+#         self._host = ""
+#         self._description = ""
+#         self._root = ""
+#         self._options = []
+#         self._submit_options = []
+#         self._line_end = ""
+#         self._view = dict()
     pass
 
 class p4_changelist(properties):
-    def __init__(self, change_no, change_date, user, workspace, desc, raw):
+    def __init__(self, change_no="", change_date=datetime.now(), user="", workspace="", desc=""):
         self._ch_no = change_no
         self._ch_date = change_date
         self._user = user
         self._workspace = workspace
         self._desc = desc
-        self._raw = raw #TODO: raw probably to delete. keeping it now for debug purpose
     def make_commit_msg(self):
-        return self._workspace + "\n" + "CL: " + self._ch_no + "\n" + self._user + " " + self._ch_date + "\n" + self._desc
+        return self._workspace + " " + "CL: " + self._ch_no + " " + self._user + " " + self._ch_date.strftime("%Y/%m/%d %H:%M:%S") + "\n" + self._desc
+    def from_commit_msg(self, commit_msg):
+        info = commit_msg.split()
+        self._workspace = info[0]
+        self._ch_no = info[2]
+        self._user = info[3]
+        self._ch_date = datetime.strptime(info[4], "%Y/%m/%d %H:%M:%S")
+        self._desc = info[5]
         
 class p4_file(properties):
     def __init__(self, path, rev, action, changelist_no, real_path=None):
@@ -100,7 +117,7 @@ class p4_wrapper:
         if self._p4log:
             print msg
 
-    def p4_login(self, p4port, p4user, p4client, p4passwd):
+    def p4_login(self, p4port, p4user, p4client, p4passwd = None):
         self._p4port = p4port
         self._p4user = p4user
         self._p4client = p4client
@@ -162,9 +179,9 @@ class p4_wrapper:
         (read_out, read_err) = p4_read.communicate()
         if p4_read.returncode != 0:
             return (False, None)
-        _p4config = self._parse_p4_client(read_out)
+        self._p4config = self._parse_p4_client(read_out)
         
-        return (True, _p4config)
+        return (True, self._p4config)
     
     def p4_client_write(self, p4conf):
         if self._logged == False:
@@ -201,7 +218,7 @@ class p4_wrapper:
         return not bool(res)
         
     def p4_changelists(self, path="//...", change_from=None, change_to=None):
-        command = "p4 changes -t submitted "+path
+        command = "p4 changes -t -s submitted "+path
         if change_from != None and change_to != None:
             command += "@"+change_from+",@"+change_to
         elif change_from != None and change_to == None:
@@ -209,8 +226,9 @@ class p4_wrapper:
         elif change_from == None and change_to != None:
             command += "@"+change_to
         res = subprocess.check_output(command, shell=True)
-                
+        
         changelists = self._parse_changelists(res)
+        changelists.sort(key=lambda it: it._ch_no)
         
         return (res, changelists)
     
@@ -249,6 +267,7 @@ class p4_wrapper:
         
         self.print_log(command)
         filelist = []
+        res = False
         if track_progr:
             filename = 'sync.log'
             with io.open(filename, 'wb') as writer, io.open(filename, 'rb', 1) as reader:
@@ -262,13 +281,23 @@ class p4_wrapper:
             os.remove(filename)
             res = syncproc.returncode
         else:
-            res = subprocess.call(command, shell=True, stdout=subprocess.PIPE)
+            syncproc = subprocess.Popen(command, shell=True, stdin=None, stdout=subprocess.PIPE, stderr=None) 
+            (read_out, read_err) = syncproc.communicate()
+            if syncproc.returncode != 0:
+                syncproc (False, [])
+            print read_out
+            linecount = 0
+            lines_all = read_out.count("\n")
+            reader_all = StringIO(read_out)
             
-        return not (bool(res), filelist)
+            while linecount < lines_all:
+                linecount = self._parse_p4_sync_out(reader_all, filelist, linecount, file_count, changelist)
+            res = syncproc.returncode
+            
+        return (not bool(res), filelist)
     
     def strip_p4root(self, path):
-        return path.lstrip(self._p4config._root)
-        
+        return path.replace(self._p4config._Root, "")
 
     def _parse_p4_sync_out(self, reader, filelist, linecount, file_no, changelist_no):
         stdoutline = reader.readline()        
@@ -277,7 +306,10 @@ class p4_wrapper:
             path = sync_str[0].split("#")[0]
             file_revision = sync_str[0].split("#")[1]
             action = self._syncstr_to_actionstr(sync_str[2])
-            real_path = sync_str[3]
+            if action == "delete" or action == "add":
+                real_path = sync_str[4]
+            else:
+                real_path = sync_str[3]
             synced_file = p4_file(path, file_revision, action, changelist_no, real_path)
             linecount += 1
             outstr = ""
@@ -407,7 +439,7 @@ class p4_wrapper:
             user = change[6].split('@')[0]
             workspace = change[6].split('@')[1]
             desc = nl.rsplit('\'')[1]
-            changelists.append(p4_changelist(change_no, change_date, user, workspace, desc, nl))
+            changelists.append(p4_changelist(change_no, change_date, user, workspace, desc))
             nl = changelists_str_io.readline()
             
         return changelists

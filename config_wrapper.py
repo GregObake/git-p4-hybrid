@@ -24,12 +24,13 @@ import os
 import git_wrapper
 import ConfigParser
 
-P4CONFIG_PATH = git_wrapper.get_topdir()+"/.git/p4config"
+def get_config_path():
+    return git_wrapper.get_topdir()+"/.git/p4config"
 
 def get_all_config():
     result = dict()
-    config_parser = ConfigParser.ConfigParser()
-    config_parser.read(P4CONFIG_PATH)
+    config_parser = ConfigParser.ConfigParser()    
+    config_parser.read(get_config_path())
     
     for section in config_parser.sections():
         result[section] = config_parser.items(section)
@@ -39,7 +40,7 @@ def get_all_config():
 def get_branch_config(branch_name):
     result = dict()
     config_parser = ConfigParser.ConfigParser()
-    config_parser.read(P4CONFIG_PATH)
+    config_parser.read(get_config_path())
     
     result[branch_name] = config_parser.items(branch_name)
     
@@ -47,21 +48,23 @@ def get_branch_config(branch_name):
 
 def set_branch_config(branch_name, p4_config):
     config_parser = ConfigParser.ConfigParser()
-    config_parser.read(P4CONFIG_PATH)
+    p4_config_path = get_config_path()
+    config_parser.read(p4_config_path)
     av_sections = config_parser.sections()
     
     if branch_name not in av_sections:
         config_parser.add_section(branch_name)
     
-    for name, value in p4_config.__dict__.iteritems():
+    for name, value in p4_config.get_all_properties():
         config_parser.set(branch_name, name, value)
                 
-    with open(P4CONFIG_PATH, "w+") as config_file:
+    with open(p4_config_path, "w+") as config_file:
         config_parser.write(config_file)
         
 def set_branch_config_option(branch_name, option_name, option_val):
     config_parser = ConfigParser.ConfigParser()
-    config_parser.read(P4CONFIG_PATH)
+    p4_config_path = get_config_path()
+    config_parser.read(p4_config_path)
     av_sections = config_parser.sections()
     
     if branch_name not in av_sections:
@@ -71,12 +74,13 @@ def set_branch_config_option(branch_name, option_name, option_val):
     if option_name != None and option_val != None:
         config_parser.set(branch_name, option_name, option_val)
                 
-    with open(P4CONFIG_PATH, "w+") as config_file:
+    with open(p4_config_path, "w+") as config_file:
         config_parser.write(config_file)
         
 def new_branch_config(branch_name, p4_config):
     config_parser = ConfigParser.ConfigParser()
-    config_parser.read(P4CONFIG_PATH)    
+    p4_config_path = get_config_path()
+    config_parser.read(p4_config_path)    
     av_sections = config_parser.sections()
     
     if branch_name in av_sections:
@@ -85,16 +89,16 @@ def new_branch_config(branch_name, p4_config):
     else:
         config_parser.add_section(branch_name)
     
-    for name, value in p4_config.__dict__.iteritems():
+    for name, value in p4_config.get_all_properties():
         if value != None:
             config_parser.set(branch_name, name, str(value))
                 
-    with open(P4CONFIG_PATH, "w+") as config_file:
+    with open(p4_config_path, "w+") as config_file:
         config_parser.write(config_file)
         
 def remove_branch_config(branch_name):
     config_parser = ConfigParser.ConfigParser()
-    config_parser.read(P4CONFIG_PATH)    
+    config_parser.read(get_config_path())    
     av_sections = config_parser.sections()
     
     if branch_name not in av_sections:
@@ -105,18 +109,18 @@ def remove_branch_config(branch_name):
         
 def get_branch_credentials(branch_name):
     config_parser = ConfigParser.ConfigParser()
-    config_parser.read(P4CONFIG_PATH)
+    config_parser.read(get_config_path())
     p4_port = config_parser.get(branch_name, 'port')
     p4_user = config_parser.get(branch_name, 'user')
     p4_client = config_parser.get(branch_name, 'client')
     return (p4_port, p4_user, p4_client)
 
 def is_p4_repo():
-    return os.path.exists(P4CONFIG_PATH)
+    return os.path.exists(get_config_path())
 
 def is_p4_branch(branch_name):
     config_parser = ConfigParser.ConfigParser()
-    config_parser.read(P4CONFIG_PATH)
+    config_parser.read(get_config_path())
     
     av_sections = config_parser.sections()
     

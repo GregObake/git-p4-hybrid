@@ -21,9 +21,32 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 '''
 
 import subprocess
+from cStringIO import StringIO
 
 def get_topdir():
     return subprocess.check_output('git rev-parse --show-toplevel', shell=True).strip("\n")
 
 def get_current_branch():
     return subprocess.check_output('git rev-parse --abbrev-ref HEAD', shell=True).strip("\n")
+
+def get_last_commit_descr():
+    commit_descr = subprocess.Popen('git log -n 1 --pretty=format:%B', shell=True, stdout=subprocess.PIPE)
+    (read_out, read_err) = commit_descr.communicate()
+    if commit_descr.returncode != 0:
+        return None
+    else:
+        return read_out.split("\n")
+
+def get_all_commit_descr():
+    commit_descr = subprocess.Popen('git log --pretty=format:%B', shell=True, stdout=subprocess.PIPE)
+    (read_out, read_err) = commit_descr.communicate()
+    if commit_descr.returncode != 0:
+        return []
+    else:
+        commit_list = []
+        commit_str_io = StringIO(read_out)
+        nl = commit_str_io.readline()
+        while nl != "":
+            commit_list.append(nl)
+            nl = commit_str_io.readline()
+        return commit_list

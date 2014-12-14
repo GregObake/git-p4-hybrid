@@ -29,9 +29,9 @@ from config_wrapper import get_branch_credentials
 from p4_wrapper import p4_wrapper
 
 #globals
-p4port = ""
-p4user = ""
-p4client = ""
+p4port = "localhost:1818"
+p4user = "g.pasieka"
+p4client = "test_depot_g.pasieka"
 p4passwd = "zaq12WSX"
 
 def main(argv):
@@ -44,7 +44,7 @@ def main(argv):
     test_dir = os.path.abspath("../../test_proj")
     os.chdir(test_dir)
         
-    (p4port, p4user, p4client) = get_branch_credentials("test-branch")
+    #(p4port, p4user, p4client) = get_branch_credentials("test-branch")
     #TODO: add creating p4 repo for test
     
     res = test_logging()
