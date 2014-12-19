@@ -118,15 +118,16 @@ def _git_p4_sync_one(path, changelist, file_count):
         #TODO: add cp process tracker
     
     os.chdir(git_topdir)
-    command = "git add -A"
-    git_proc = subprocess.Popen(command, stdout=None, stderr=None, shell=True)
-    git_proc.communicate()
+    ret = git_wrapper.add_all_changes()
     
-    if git_proc.returncode != 0:
+    if ret != 0:
         return False
     
-    command = "git commit -m\""+changelist.make_commit_msg()+"\""
-    git_proc = subprocess.Popen(command, stdout=None, stderr=None, shell=True)
-    git_proc.communicate()
+    ret = git_wrapper.commit(changelist)
     
-    return not bool(git_proc.returncode)
+    if ret != 0:
+        return False
+    
+    ret = git_wrapper.tag(path, changelist)
+    
+    return not bool(ret)

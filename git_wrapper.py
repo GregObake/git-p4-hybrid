@@ -50,3 +50,21 @@ def get_all_commit_descr():
             commit_list.append(nl)
             nl = commit_str_io.readline()
         return commit_list
+    
+def add_all_changes():
+    command = "git add -A"
+    git_proc = subprocess.Popen(command, stdout=None, stderr=None, shell=True)
+    git_proc.communicate()    
+    return git_proc.returncode
+
+def commit(changelist):
+    command = "git commit -m\""+changelist.make_commit_msg()+"\""
+    git_proc = subprocess.Popen(command, stdout=None, stderr=None, shell=True)
+    git_proc.communicate()
+    return git_proc.returncode
+
+def tag(path, changelist):
+    command = "git tag -a CL_"+changelist._ch_no+" -m\"Synced "+path+"@"+changelist._ch_no+"\""
+    git_proc = subprocess.Popen(command, stdout=None, stderr=None, shell=True)
+    git_proc.communicate()
+    return git_proc.returncode
