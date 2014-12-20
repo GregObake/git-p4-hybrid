@@ -63,8 +63,35 @@ def commit(changelist):
     git_proc.communicate()
     return git_proc.returncode
 
-def tag(path, changelist):
-    command = "git tag -a CL_"+changelist._ch_no+" -m\"Synced "+path+"@"+changelist._ch_no+"\""
+def tag_CL(path, changelist):
+    command = "git tag_CL -a CL_"+changelist._ch_no+" -m\"Synced "+path+"@"+changelist._ch_no+"\""
     git_proc = subprocess.Popen(command, stdout=None, stderr=None, shell=True)
     git_proc.communicate()
     return git_proc.returncode
+
+def check_last_CL_tag():
+    command = "git describe --match=CL_* HEAD"
+    git_proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=None, shell=True)
+    (CL_tag, err) = git_proc.communicate()
+    if git_proc.returncode == 0:
+        return CL_tag
+    else:
+        return None
+
+def check_head_CL_tag():
+    command = "git describe --match=CL_* --exact-match HEAD"
+    git_proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=None, shell=True)
+    (CL_tag, err) = git_proc.communicate()
+    if git_proc.returncode == 0:
+        return CL_tag
+    else:
+        return None
+
+def get_commit_distance(l_commit, r_commit):
+    command = "git log --oneline "+l_commit+".."+r_commit
+    git_proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=None, shell=True)
+    (git_log, err) = git_proc.communicate()
+    if git_proc.returncode == 0:
+        return git_log.count("\n")
+    else:
+        return 0

@@ -31,6 +31,15 @@ from __builtin__ import bool
 # @param options sync command options
 # TODO: add some rebasing/merging options for existing commits that were not synced to p4
 def git_p4_sync(options):
+    
+    head_tag = git_wrapper.check_head_CL_tag()
+    
+    if head_tag == None:
+        last_tag = git_wrapper.check_last_CL_tag()
+        print str(git_wrapper.get_commit_distance(last_tag, "HEAD"))+\
+            " commits in this branch are not submitted to P4. Aborting p4 sync"
+        return False
+    
     p4w = p4_wrapper()
     p4w.load_state()
     
@@ -128,6 +137,6 @@ def _git_p4_sync_one(path, changelist, file_count):
     if ret != 0:
         return False
     
-    ret = git_wrapper.tag(path, changelist)
+    ret = git_wrapper.tag_CL(path, changelist)
     
     return not bool(ret)
