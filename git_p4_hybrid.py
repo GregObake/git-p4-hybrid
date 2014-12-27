@@ -31,15 +31,11 @@ def main(argv):
     subparser = parser.add_subparsers(help='sub-command help', dest='subcommand')
     
     #TODO: list-all, list & b, others must be mutualy exclusive
-    config_parser = subparser.add_parser('config', help='configure git-p4 hybrid')
-    config_parser.add_argument('--list', help='list p4 config of current branch', action='store_true')
-    config_parser.add_argument('--list-all', help='list p4 config of all branches', action='store_true')
-    config_parser.add_argument('-b', '--branch', help='branch name')
-    config_parser.add_argument('-p', '--port', help='p4 server ipaddress:port')
-    config_parser.add_argument('-u', '--user', help='p4 server user')
-    config_parser.add_argument('-c', '--client', help='p4 server workspace name')    
-    config_parser.add_argument('-r', '--root', help='p4 workspace root')
-    config_parser.add_argument('--passwd', help='p4 server password')    
+    config_parser = subparser.add_parser('config', help='configure git-p4 branch')
+    setup_config_parser(config_parser)
+    
+    init_parser = subparser.add_parser('init', help='initialize git-p4 branch')
+    setup_init_parser(init_parser)
     
     #PARSING OPTIONS
     options = parser.parse_args(argv[1:])
@@ -49,6 +45,27 @@ def main(argv):
     
     if options.subcommand == "config":
         git_p4_config(options)
+
+def setup_config_parser(config_parser):
+    config_parser.add_argument('--list', help='list p4 config of current branch', action='store_true')
+    config_parser.add_argument('--list-all', help='list p4 config of all branches', action='store_true')
+    config_parser.add_argument('-b', '--branch', help='branch name')
+    config_parser.add_argument('-p', '--port', help='p4 server ipaddress:port')
+    config_parser.add_argument('-u', '--user', help='p4 server user')
+    config_parser.add_argument('-c', '--client', help='p4 server workspace name')
+    config_parser.add_argument('-r', '--root', help='p4 workspace root')
+    config_parser.add_argument('--passwd', help='p4 server password')
+    
+def setup_init_parser(init_parser):
+    init_parser.add_argument('-b', '--branch', help='branch name', required=True)
+    init_parser.add_argument('-p', '--port', help='p4 server ipaddress:port', required=True)
+    init_parser.add_argument('-u', '--user', help='p4 server user', required=True)
+    init_parser.add_argument('-c', '--client', help='p4 server workspace name', required=True)
+    init_parser.add_argument('-r', '--root', help='p4 workspace root')
+    init_parser.add_argument('--passwd', help='p4 server password')
+    sync_group = init_parser.add_mutually_exclusive_group()
+    sync_group.add_argument('--nosync', help='initialize empty repository, do not sync any changelists', action='store_true')
+    sync_group.add_argument('-s', '--sync', nargs='+', help='sync commits range: 1 agr - commit_from, 2 args - commit_from, commit_to')
 
 if __name__ == "__main__":
     main(sys.argv)

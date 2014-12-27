@@ -29,7 +29,7 @@ from __builtin__ import bool
 ## Sync p4 commmits to git branch
 #
 # @param options sync command options
-# TODO: add some rebasing/merging options for existing commits that were not synced to p4
+# TODO: add some rebasing/merging options for existing commits that were not synced to p4 (stash non-p4 commits?)
 def git_p4_sync(options):
     
     head_tag = git_wrapper.check_head_CL_tag()
@@ -60,18 +60,26 @@ def git_p4_sync(options):
         if depot_path[1] != '-':
             paths.append(depot_path)
     #TODO: map changelist_no -> ws_path must be created to support mulit path commits
-    #last changelist no
-    last_commit = p4_changelist()
-    last_commit_val = git_wrapper.get_last_commit_descr()
-    last_commit_no = None
-    if last_commit_val != None:
-        last_commit.from_commit_msg(last_commit_val)
-        last_commit_no = last_commit._ch_no
+    #commit from changelist no
+    commit_from_no = None
+    commit_to_no = None
+    commit_from_val = None
+    
+    if options.sync == None:        
+        commit_from = p4_changelist()
+        commit_from_val = git_wrapper.get_last_commit_descr()    
+        if commit_from_val != None:
+            commit_from.from_commit_msg(commit_from_val)
+            commit_from_no = commit_from._ch_no
+    else:
+        commit_from_no = options.sync[0]
+        if len(options.sync) == 2:
+            commit_to_no = options.sync[1]    
     
     path_changelist_dict = dict()
     for path in paths:        
-        (res, changelists) = p4w.p4_changelists(path, last_commit_no)
-        if last_commit_val != None:
+        (res, changelists) = p4w.p4_changelists(path, commit_from_no, commit_to_no)
+        if commit_from_val != None:
             changelists = changelists[1:]
         path_changelist_dict[path] = changelists
         

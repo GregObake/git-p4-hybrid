@@ -34,7 +34,11 @@ from git_p4_sync import git_p4_sync
 # port - p4 server addr
 # user - p4 user
 # client - p4 workspace name
+# root - non-default p4 root directory
 # passwd - p4 password
+# nosync - do not sync any changelist
+# sync commit_from, commit_to -sync range 
+
 def git_p4_init(options):
     p4w = p4_wrapper()
     #Login to workspace
@@ -48,8 +52,13 @@ def git_p4_init(options):
     #Add client to config
     config_wrapper.new_branch_config(options.branch, p4conf)
     #change root & write client config to p4 & config file
-    new_root = git_wrapper.get_topdir()+"/.git/p4repo_"+options.branch #TODO: per branch inner p4 repo?
-    os.mkdir(new_root)
+    new_root = ""
+    if options.root == None:
+        new_root = git_wrapper.get_topdir()+"/.git/p4repo_"+options.branch
+        os.mkdir(new_root)
+    else:
+        new_root = options.root
+
     p4conf._set_property("Root", new_root)
     p4w.p4_client_write(p4conf)
     
@@ -59,7 +68,10 @@ def git_p4_init(options):
     p4conf.add_property("Passwd", options.passwd)    
     config_wrapper.set_branch_config(options.branch, p4conf)
     
-    git_p4_sync(options)
+    if options.nosync != True:
+        git_p4_sync(options)
+    else:        
+        print "Initialized empty git-p4 repository"
     #TODO: set p4 head
         
     p4w.p4_logout()
