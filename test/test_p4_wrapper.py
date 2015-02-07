@@ -81,19 +81,19 @@ def test_client_read_write():
         p4w.p4_logout()
         return False
     
-    old_descr = p4conf.Description
-    p4conf.Description = "New descr"
+    old_descr = p4conf._description
+    p4conf._description = "New descr"
     p4w.p4_client_write(p4conf)
     (res, p4conf) = p4w.p4_client_read()
-    if p4conf.Description != "New descr\n":
+    if p4conf._description != "New descr\n":
         print "ERROR: Description has not changed (1st)"
         res = p4w.p4_logout()
         return False
     
-    p4conf.Description = old_descr
+    p4conf._description = old_descr
     p4w.p4_client_write(p4conf)
     (res, p4conf) = p4w.p4_client_read()
-    if p4conf.Description != old_descr:
+    if p4conf._description != old_descr:
         print "ERROR: Description has not changed (2st)"
         res = p4w.p4_logout()
         return False
@@ -152,11 +152,11 @@ def test_sync():
     if not res:
         return False
     
-    res = p4w.p4_sync(None, '1', True, True, 0)
-    res = p4w.p4_sync(None, '2', True, True, 0)
-    res = p4w.p4_sync(None, 2, True, True, 0)
+    (res, file_list) = p4w.p4_sync(None, '1', True, True, 0)
+    (res, file_list) = p4w.p4_sync(None, '2', True, True, 0)
+    (res, file_list) = p4w.p4_sync(None, 2, True, True, 0)
     
-    res = p4w.p4_sync(None, '#head', True, True, 0)
+    (res, file_list) = p4w.p4_sync(None, '#head', True, True, 0)
     return res
     
 if __name__ == "__main__":

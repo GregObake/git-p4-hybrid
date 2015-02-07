@@ -59,13 +59,12 @@ def git_p4_init(options):
     else:
         new_root = options.root
 
-    p4conf._set_property("Root", new_root)
+    p4conf._root =  new_root
     p4w.p4_client_write(p4conf)
     
-    p4conf.add_property("Port", options.port)
-    p4conf.add_property("User", options.user)
-    p4conf.add_property("Client", options.client)
-    p4conf.add_property("Passwd", options.passwd)    
+    p4conf._port = options.port
+    p4conf._user = options.user
+    p4conf._passwd = options.passwd    
     config_wrapper.set_branch_config(options.branch, p4conf)
     
     if options.nosync != True:

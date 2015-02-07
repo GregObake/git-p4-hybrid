@@ -56,19 +56,72 @@ class properties(object):
         return result    
 
 class p4_client_config(properties):
-#     def __init__(self):
-#         self._client = ""
-#         self._update = datetime()
-#         self._access = datetime()
-#         self._owner = ""
-#         self._host = ""
-#         self._description = ""
-#         self._root = ""
-#         self._options = []
-#         self._submit_options = []
-#         self._line_end = ""
-#         self._view = dict()
-    pass
+    def __init__(self):
+        self._client = ""
+        self._update = datetime.fromtimestamp(0) #TODO: change to some invalid date
+        self._access = datetime.fromtimestamp(0) #TODO: change to some invalid date
+        self._owner = ""
+        self._host = ""
+        self._description = ""
+        self._root = ""
+        self._options = []
+        self._submit_options = []
+        self._line_end = ""
+        self._view = dict()
+        self._port = ""
+        self._user = ""
+        self._passwd = ""
+    def ArgToClient(self, arg):
+        ret_str = ""
+        if arg == "_client":
+            ret_str = "Client:"
+        elif arg == "_update":
+            ret_str = "Update:"
+        elif arg == "_access":
+            ret_str = "Access:"
+        elif arg == "_owner":
+            ret_str = "Owner:"
+        elif arg == "_host":
+            ret_str = "Host:"
+        elif arg == "_description":
+            ret_str = "Description:"
+        elif arg == "_root":
+            ret_str = "Root:"
+        elif arg == "_options":
+            ret_str = "Options:"
+        elif arg == "_submit_options":
+            ret_str = "SubmitOptions:"
+        elif arg == "_line_end":
+            ret_str = "LineEnd:"
+        elif arg == "_view":
+            ret_str = "View:"
+        return ret_str
+    
+    def ClientToArg(self, client):
+        ret_str = ""
+        if client == "Client:":
+            ret_str = "_client"
+        elif client == "Update:":
+            ret_str = "_update"
+        elif client == "Access:":
+            ret_str = "_access"
+        elif client == "Owner:":
+            ret_str = "_owner"
+        elif client == "Host:":
+            ret_str = "_host"
+        elif client == "Description:":
+            ret_str = "_description"
+        elif client == "Root:":
+            ret_str = "_root"
+        elif client == "Options:":
+            ret_str = "_options"
+        elif client == "SubmitOptions:":
+            ret_str = "_submit_options"
+        elif client == "LineEnd:":
+            ret_str = "_line_end"
+        elif client == "View:":
+            ret_str = "_view"
+        return ret_str
 
 class p4_changelist(properties):
     def __init__(self, change_no="", change_date=datetime.now(), user="", workspace="", desc=""):
@@ -107,7 +160,7 @@ class p4_wrapper:
         self._p4port = None
         self._p4user = None
         self._p4client = None
-        self._p4log = True
+        self._p4log = False
         self._p4config = None
         
     def set_p4_log(self, p4log):
@@ -189,7 +242,10 @@ class p4_wrapper:
         
         output = ""
         for key, value in p4conf.__dict__.iteritems():
-            output += key[1:]+":"    
+            conf_arg = p4conf.ArgToClient(key)
+            if conf_arg == "":
+                continue
+            output += conf_arg    
             if type(value) == str:
                 output += "\t"+value
             elif type(value) == list:
@@ -285,7 +341,7 @@ class p4_wrapper:
             (read_out, read_err) = syncproc.communicate()
             if syncproc.returncode != 0:
                 syncproc (False, [])
-            print read_out
+            self.print_log(read_out)
             linecount = 0
             lines_all = read_out.count("\n")
             reader_all = StringIO(read_out)
@@ -345,22 +401,22 @@ class p4_wrapper:
             
         client_str = client_str_io.read();
         
-        self._parse_string_prop(client_str, p4conf, "Client:")
-        self._parse_datetime_prop(client_str, p4conf, "Update:")
-        self._parse_datetime_prop(client_str, p4conf, "Access:")
-        self._parse_string_prop(client_str, p4conf, "Owner:")
-        self._parse_string_prop(client_str, p4conf, "Host:")
+        self._parse_string_prop(client_str, p4conf, "_client")
+        self._parse_datetime_prop(client_str, p4conf, "_update")
+        self._parse_datetime_prop(client_str, p4conf, "_access")
+        self._parse_string_prop(client_str, p4conf, "_owner")
+        self._parse_string_prop(client_str, p4conf, "_host")
         self._parse_description_prop(client_str, p4conf)
-        self._parse_string_prop(client_str, p4conf, "Root:")
-        self._parse_list_prop(client_str, p4conf, "Options:")
-        self._parse_list_prop(client_str, p4conf, "SubmitOptions:")
-        self._parse_string_prop(client_str, p4conf, "LineEnd:")
+        self._parse_string_prop(client_str, p4conf, "_root")
+        self._parse_list_prop(client_str, p4conf, "_options")
+        self._parse_list_prop(client_str, p4conf, "_submit_options")
+        self._parse_string_prop(client_str, p4conf, "_line_end")
         self._parse_view_prop(client_str, p4conf)
         
         return p4conf
         
     def _parse_string_prop(self, client_str, p4conf, arg_name):
-        ind = client_str.find(arg_name)
+        ind = client_str.find(p4conf.ArgToClient(arg_name))
         
         if ind == -1:
             return
@@ -368,10 +424,10 @@ class p4_wrapper:
         client_str_io = StringIO(client_str[ind:])
         nl = client_str_io.readline()
         words = nl.split()
-        p4conf.add_property(arg_name[:-1], words[1])
+        setattr(p4conf, arg_name, words[1])
         
     def _parse_list_prop(self, client_str, p4conf, arg_name):
-        ind = client_str.find(arg_name)
+        ind = client_str.find(p4conf.ArgToClient(arg_name))
         
         if ind == -1:
             return
@@ -379,10 +435,10 @@ class p4_wrapper:
         client_str_io = StringIO(client_str[ind:])
         nl = client_str_io.readline()
         words = nl.split()
-        p4conf.add_property(arg_name[:-1], words[1:])
+        setattr(p4conf, arg_name, words[1:])
         
     def _parse_datetime_prop(self, client_str, p4conf, arg_name):
-        ind = client_str.find(arg_name)
+        ind = client_str.find(p4conf.ArgToClient(arg_name))
         
         if ind == -1:
             return
@@ -391,10 +447,11 @@ class p4_wrapper:
         nl = client_str_io.readline()
         
         datetime_parsed = datetime.strptime(nl[len(arg_name):].strip(), "%Y/%m/%d %H:%M:%S")
-        p4conf.add_property(arg_name[:-1], datetime_parsed)
+        setattr(p4conf, arg_name, datetime_parsed)
         
     def _parse_description_prop(self, client_str, p4conf):
-        ind = client_str.find("Description:")
+        arg_name = "_description"
+        ind = client_str.find(p4conf.ArgToClient(arg_name))
         
         if ind == -1:
             return
@@ -407,10 +464,11 @@ class p4_wrapper:
             description += nl.strip('\t')
             nl = client_str_io.readline()
             
-        p4conf.add_property("Description", description)
+        setattr(p4conf, arg_name, description)
         
     def _parse_view_prop(self, client_str, p4conf):
-        ind = client_str.find("View:")
+        arg_name = "_view"
+        ind = client_str.find(p4conf.ArgToClient(arg_name))
         
         if ind == -1:
             return
@@ -425,7 +483,7 @@ class p4_wrapper:
             view[mapping[0]] = mapping[1]
             nl = client_str_io.readline()
             
-        p4conf.add_property("View", view)
+        setattr(p4conf, arg_name, view)
         
     def _parse_changelists(self, changelists_str):
         changelists = []
