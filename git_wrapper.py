@@ -64,7 +64,7 @@ def commit(changelist):
     return git_proc.returncode
 
 def tag_CL(path, changelist):
-    command = "git tag_CL -a CL_"+changelist._ch_no+" -m\"Synced "+path+"@"+changelist._ch_no+"\""
+    command = "git tag -a CL_"+changelist._ch_no+" -m\"Synced "+path+"@"+changelist._ch_no+"\""
     git_proc = subprocess.Popen(command, stdout=None, stderr=None, shell=True)
     git_proc.communicate()
     return git_proc.returncode

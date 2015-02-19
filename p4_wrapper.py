@@ -353,7 +353,7 @@ class p4_wrapper:
         return (not bool(res), filelist)
     
     def strip_p4root(self, path):
-        return path.replace(self._p4config._Root, "")
+        return path.replace(self._p4config._root, "")
 
     def _parse_p4_sync_out(self, reader, filelist, linecount, file_no, changelist_no):
         stdoutline = reader.readline()        

@@ -25,9 +25,7 @@ import sys
 
 sys.path.append(os.path.abspath(os.getcwd()+"/.."))
 from git_p4_init import git_p4_init
-import git_p4_sync
-from p4_wrapper import p4_wrapper
-from config_wrapper import get_branch_credentials
+import git_wrapper 
 import subprocess
 import argparse
 import shutil
@@ -37,26 +35,20 @@ p4port = ""
 p4user = ""
 p4client = ""
 p4passwd = "zaq12WSX"
+calling_dir = ""
 
 def main(argv):
     global p4port
     global p4user
     global p4client
     global p4passwd
+    global calling_dir
     
-    #change working dir to separate test_proj
     calling_dir = os.getcwd()
-    test_dir = os.path.abspath("../../git-p4_test")
-    if os.access(test_dir, os.R_OK or os.W_OK):
-        shutil.rmtree(test_dir)
-    os.mkdir(test_dir)
-    os.chdir(test_dir)    
     
-    #create git repository here
-    subprocess.call("git init", stdout=None, shell=True)
-    subprocess.call("git checkout -b test-branch", stdout=None, shell=True)
-    
+    test_prepare()
     test_git_p4_init()
+    test_clean()
     
 #     (p4port, p4user, p4client) = get_branch_credentials("test-branch")
 #     p4w = p4_wrapper()
@@ -70,13 +62,50 @@ def main(argv):
 
 def test_git_p4_init():
     options = argparse.Namespace()
+    options.__setattr__("subcommand", "init")
     options.__setattr__("port", "localhost:1818") 
     options.__setattr__("user", "g.pasieka")
     options.__setattr__("client", "test_depot_g.pasieka")
     options.__setattr__("passwd", "zaq12WSX")
     options.__setattr__("branch", "test-branch")
+    options.__setattr__("root", None)
+    options.__setattr__("nosync", False)
+    options.__setattr__("sync", None)
     
     git_p4_init(options)
+    
+    if git_wrapper.get_current_branch() != options.branch:
+        print "ERROR bad branch name after git-p4 init"
+        return False
+    if git_wrapper.check_head_CL_tag() == None:
+        print "ERROR no tag on last commit"
+        return False
+    if len(git_wrapper.get_all_commit_descr()) <= 1:
+        print "ERROR some changelists were not commited"
+        return False
+    
+    return True
+    
+def test_prepare():
+    #change working dir to separate test_proj
+    global calling_dir
+    os.chdir(calling_dir)
+    test_dir = os.path.abspath("../../git-p4_test")
+    if os.access(test_dir, os.R_OK or os.W_OK):
+        shutil.rmtree(test_dir)
+    os.mkdir(test_dir)
+    os.chdir(test_dir)
+    
+    #create git repository here
+    subprocess.call("git init", stdout=None, shell=True)
+    subprocess.call("git checkout -b test-branch", stdout=None, shell=True)
+    
+def test_clean():
+    global calling_dir
+    os.chdir(calling_dir)
+    test_dir = os.path.abspath("../../git-p4_test")
+    if os.access(test_dir, os.R_OK or os.W_OK):
+        shutil.rmtree(test_dir)
 
 if __name__ == "__main__":
     main(sys.argv)

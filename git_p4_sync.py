@@ -36,9 +36,10 @@ def git_p4_sync(options):
     
     if head_tag == None:
         last_tag = git_wrapper.check_last_CL_tag()
-        print str(git_wrapper.get_commit_distance(last_tag, "HEAD"))+\
-            " commits in this branch are not submitted to P4. Aborting p4 sync"
-        return False
+        if last_tag != None:
+            print str(git_wrapper.get_commit_distance(last_tag, "HEAD"))+\
+                " commits in this branch are not submitted to P4. Aborting p4 sync"
+            return False
     
     p4w = p4_wrapper()
     p4w.load_state()
@@ -56,7 +57,7 @@ def git_p4_sync(options):
     #parse workspace mapping
     paths = []
     #print p4w._p4config.get_all_properties()
-    for depot_path in p4w._p4config._View.iterkeys():
+    for depot_path in p4w._p4config._view.iterkeys():
         if depot_path[1] != '-':
             paths.append(depot_path)
     #TODO: map changelist_no -> ws_path must be created to support mulit path commits
@@ -120,7 +121,7 @@ def _git_p4_sync_one(path, changelist, file_count):
     
     command = ""
     git_topdir = git_wrapper.get_topdir()
-    os.chdir(p4w._p4config._Root)
+    os.chdir(p4w._p4config._root)
     print os.getcwd()
     for synced_file in filelist:        
         if synced_file._action == "add" or synced_file._action == "edit":
