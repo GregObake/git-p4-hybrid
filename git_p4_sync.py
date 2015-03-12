@@ -68,7 +68,7 @@ def git_p4_sync(options):
     
     if options.sync == None:        
         commit_from = p4_changelist()
-        commit_from_val = git_wrapper.get_last_commit_descr()    
+        commit_from_val = git_wrapper.get_last_commit()._descr
         if commit_from_val != None:
             commit_from.from_commit_msg(commit_from_val)
             commit_from_no = commit_from._ch_no

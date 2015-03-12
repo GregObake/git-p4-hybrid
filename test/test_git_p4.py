@@ -80,7 +80,7 @@ def test_git_p4_init():
     if git_wrapper.check_head_CL_tag() == None:
         print "ERROR no tag on last commit"
         return False
-    if len(git_wrapper.get_all_commit_descr()) <= 1:
+    if len(git_wrapper.get_all_commits()) <= 1:
         print "ERROR some changelists were not commited"
         return False
     

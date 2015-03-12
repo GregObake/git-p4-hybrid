@@ -22,6 +22,20 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 import subprocess
 from cStringIO import StringIO
+from datetime import datetime
+import re
+
+class git_commit:
+    def __init__(self, commit_no="", author="", email="", date_time=datetime.now(), descr=""):
+        self._commit_no = commit_no
+        self._author = author
+        self._email = email
+        self._date_time = date_time
+        self._descr = descr
+        
+    def __str__(self):
+        return self._commit_no + "\n" + self._author + "\n" + self._email + "\n" +\
+            self._date_time.strftime("%a %b %d %H:%M:%S %Y") + "\n" + self._descr
 
 def get_topdir():
     return subprocess.check_output('git rev-parse --show-toplevel', shell=True).strip("\n")
@@ -29,27 +43,25 @@ def get_topdir():
 def get_current_branch():
     return subprocess.check_output('git rev-parse --abbrev-ref HEAD', shell=True).strip("\n")
 
-def get_last_commit_descr():
-    commit_descr = subprocess.Popen('git log -n 1 --pretty=format:%B', shell=True, stdout=subprocess.PIPE)
+def get_last_commit():
+    commit_descr = subprocess.Popen('git log -n 1 --format=format:"commit %H%nAuthor: %aN <%aE>%nDate: %ad%n%B"', shell=True, stdout=subprocess.PIPE)
     (read_out, read_err) = commit_descr.communicate()
     if commit_descr.returncode != 0:
         return None
     else:
-        return read_out.split("\n")
+        commit_str_io = StringIO(read_out)
+        git_log = commit_str_io.read()
+        return _parse_git_log(git_log)[0]
 
-def get_all_commit_descr():
-    commit_descr = subprocess.Popen('git log --pretty=format:%B', shell=True, stdout=subprocess.PIPE)
+def get_all_commits():
+    commit_descr = subprocess.Popen('git log --format=format:"commit %H%nAuthor: %aN <%aE>%nDate: %ad%n%B"', shell=True, stdout=subprocess.PIPE)
     (read_out, read_err) = commit_descr.communicate()
     if commit_descr.returncode != 0:
         return []
     else:
-        commit_list = []
         commit_str_io = StringIO(read_out)
-        nl = commit_str_io.readline()
-        while nl != "":
-            commit_list.append(nl)
-            nl = commit_str_io.readline()
-        return commit_list
+        git_log = commit_str_io.read()
+        return _parse_git_log(git_log)
     
 def add_all_changes():
     command = "git add -A"
@@ -95,3 +107,16 @@ def get_commit_distance(l_commit, r_commit):
         return git_log.count("\n")
     else:
         return 0
+    
+def _parse_git_log(log_str):
+    commit_ls = []
+    gitlog_pattern = "^commit (\w{40})\nAuthor:\s+(\S+)\s+\<(\S+)\>\nDate:\s+([^\n]+)\n"    
+    log_regexed= re.split(gitlog_pattern, log_str, flags=re.DOTALL|re.MULTILINE)
+    
+    for index in range(1, len(log_regexed), 5):
+        #in Python 2.7 cannot use %z for timezone so string must be cut
+        commit_date = datetime.strptime(log_regexed[index+3][:-6], "%a %b %d %H:%M:%S %Y")
+        commit_obj = git_commit(log_regexed[index], log_regexed[index+1], log_regexed[index+2],
+                                commit_date, log_regexed[index+4].rstrip())
+        commit_ls.append(commit_obj)
+    return commit_ls
